@@ -40,10 +40,10 @@ public class SmithWilsonKics extends IrModel {
 	
 	private double                        alphaPp           = 1.0;
 	private double                        alphaDpp          = 0.0;
-	private double                        alphaFwd          = 0.0;
-//	private double                        alphaFwdT         = 0.0;
-//	private double                        targetFwd         = 0.0;
-
+	private double                        alphaFwd          = 0.0;   
+	private double                        alphaFwdT         = 0.0;
+	private double                        targetFwd         = 0.0;
+	
 	private RealMatrix                    zetaColumn;
 	
 	
@@ -98,6 +98,7 @@ public class SmithWilsonKics extends IrModel {
 		this.setSwAttributes();
 		this.setProjectionTenor();
 	}
+	
 
 	public List<SmithWilsonRslt> getSmithWilsonResultList() {
 		
@@ -194,39 +195,29 @@ public class SmithWilsonKics extends IrModel {
 				if(Math.abs(Math.exp(this.ltfrCont) - Math.exp(this.alphaFwd)) < ltfrEpsilon) {
 					break;
 				}
-				// 23.07.21 여기도 불필요.
-//				else if(this.alphaFwd > this.ltfrCont) {
-//					this.alphaFwdT = Math.log(Math.exp(this.ltfrCont) + ltfrEpsilon);
-//				}
-//				else {
-//					this.alphaFwdT = Math.log(Math.exp(this.ltfrCont) - ltfrEpsilon);
-//				}
-			}
-			else {
-				
-				// 23.07.20 수렴조건 수정 기존로직 주석처리  test
-//				if(this.alphaFwdT < this.ltfrCont) {
-//					if(this.alphaFwd < this.alphaFwdT) {
-//						this.alphaApplied = this.alphaApplied + this.alphaDApplied;
-//					}
-//					else {
-//						this.alphaApplied = this.alphaApplied - this.alphaDApplied;
-//					}
-//				}
-//				else {
-//					if(this.alphaFwd < this.alphaFwdT) {
-//						this.alphaApplied = this.alphaApplied - this.alphaDApplied;
-//					}
-//					else {
-//						this.alphaApplied = this.alphaApplied + this.alphaDApplied;
-//					}
-//				}
-				// 23.07.20 수렴조건 수정 : FSS 수렴조건체크와 동일하도록 수정.
-				if(Math.abs(Math.exp(this.alphaFwd) - Math.exp(this.ltfrCont)) > ltfrEpsilon) {
-					this.alphaApplied = this.alphaApplied + this.alphaDApplied;
+				else if(this.alphaFwd > this.ltfrCont) {
+					this.alphaFwdT = Math.log(Math.exp(this.ltfrCont) + ltfrEpsilon);
 				}
 				else {
-					this.alphaApplied = this.alphaApplied - this.alphaDApplied;
+					this.alphaFwdT = Math.log(Math.exp(this.ltfrCont) - ltfrEpsilon);
+				}
+			}
+			else {
+				if(this.alphaFwdT < this.ltfrCont) {
+					if(this.alphaFwd < this.alphaFwdT) {
+						this.alphaApplied = this.alphaApplied + this.alphaDApplied;
+					}
+					else {
+						this.alphaApplied = this.alphaApplied - this.alphaDApplied;
+					}					
+				}
+				else {
+					if(this.alphaFwd < this.alphaFwdT) {
+						this.alphaApplied = this.alphaApplied - this.alphaDApplied;
+					}
+					else {
+						this.alphaApplied = this.alphaApplied + this.alphaDApplied;
+					}					
 				}
 				this.alphaDApplied *= 0.5;	
 			}			
@@ -240,7 +231,6 @@ public class SmithWilsonKics extends IrModel {
 		
 		List<SmithWilsonRslt> swResultlList = new ArrayList<SmithWilsonRslt>();			
 		this.smithWilsonAlphaFinding();
-		
 		log.info("AlphaOpt: {}, Error: {}", this.alphaApplied, Math.abs(this.alphaFwd - this.ltfrCont));
 //		log.info("{}", this.zetaColumn);
 		
@@ -287,51 +277,44 @@ public class SmithWilsonKics extends IrModel {
 		/**
 		 * for fwdDisc[0] = f(0, 0, 1) = r(0, 1)), fwdDisc[719] = 0.0518994483
 		 */
-//		boolean flag =false; 
-//		double tempFwdCont =0.0;
-//		double tempspotCont =0.0;
-//		int idx =0;
-		
-		for(int i=0; i<this.prjYearFrac.length-1; i++) {
-
+		boolean flag =false; 
+		double tempFwdCont =0.0;
+		double tempspotCont =0.0;
+		int idx =0;
+		for(int i=0; i<this.prjYearFrac.length-1; i++) {			
 			priceZcb[i] = priceCol.getEntry(i,0);
-
-//			20221019 수정 : Smith Wilson 의 추정이 비정상인 경우, 음의 가격 예외처리 위해 주석 
-			// 20230720 수정 : alpha 찾는 로직을 수정하고 여기는 원래대로 
-			spotCont[i] = -1.0 / this.prjYearFrac[i] * Math.log(priceZcb[i]);
-			fwdCont[i]  = (i > 0) ? (spotCont[i] * prjYearFrac[i] - spotCont[i-1] * prjYearFrac[i-1]) / (prjYearFrac[i] - prjYearFrac[i-1]) : spotCont[i];
-
 			
 //			20221019 수정 : Smith Wilson 의 추정이 비정상인 경우, 음의 가격 예외처리
-//			if(Math.abs(this.alphaFwd - this.ltfrCont) > 0.01 && flag) {
-//				fwdCont[i]  =0.0;
-//				if(flag) {
-//					if(i < 720 ) {
-//						spotCont[i] = tempspotCont +  (i-idx) * ( this.ltfrCont - tempFwdCont) / ( 720 - idx ) ;			//  target rate linera interpol
-//						priceZcb[i] = Math.exp(spotCont[i] * -1.0 * this.prjYearFrac[i]);
-//					}
-//					else {
-//						spotCont[i] =  this.ltfrCont;
-//					}
-//				}
-//				else {
-//					spotCont[i] = -1.0 *  Math.log(priceZcb[i]) / this.prjYearFrac[i] ;
-//					fwdCont[i]  = (i > 0) ? (spotCont[i] * prjYearFrac[i] - spotCont[i-1] * prjYearFrac[i-1]) / (prjYearFrac[i] - prjYearFrac[i-1]) : spotCont[i];
-//				}
-//			}
-//			else { // Smith Wilson 의 추정이 정상적인 경우임	
-//				spotCont[i] = -1.0 *  Math.log(priceZcb[i]) / this.prjYearFrac[i] ;
-//				fwdCont[i]  = (i > 0) ? (spotCont[i] * prjYearFrac[i] - spotCont[i-1] * prjYearFrac[i-1]) / (prjYearFrac[i] - prjYearFrac[i-1]) : spotCont[i];
-//				
-//				
-//				if(priceZcb[i] < 0 || fwdCont[i]> 0.15 || spotCont[i]> 0.15 ) {
-//					flag = true;
-//					tempspotCont =spotCont[i];
-//					tempFwdCont = spotCont[i];
-//					idx =i;
-//				}
-//			}
-
+			if(Math.abs(this.alphaFwd - this.ltfrCont) > 0.01 && flag) {
+				fwdCont[i]  =0.0;
+				if(flag) {
+					if(i < 720 ) {
+						spotCont[i] = tempspotCont +  (i-idx) * ( this.ltfrCont - tempFwdCont) / ( 720 - idx ) ;			//  target rate linera interpol
+						priceZcb[i] = Math.exp(spotCont[i] * -1.0 * this.prjYearFrac[i]);
+					}
+					else {
+						spotCont[i] =  this.ltfrCont;
+					}
+				}
+				else {
+					spotCont[i] = -1.0 *  Math.log(priceZcb[i]) / this.prjYearFrac[i] ;
+					fwdCont[i]  = (i > 0) ? (spotCont[i] * prjYearFrac[i] - spotCont[i-1] * prjYearFrac[i-1]) / (prjYearFrac[i] - prjYearFrac[i-1]) : spotCont[i];
+				}
+			}
+//			20221019 수정 : Smith Wilson 의 추정이 정상적인 경우임			
+			else {
+				spotCont[i] = -1.0 *  Math.log(priceZcb[i]) / this.prjYearFrac[i] ;
+				fwdCont[i]  = (i > 0) ? (spotCont[i] * prjYearFrac[i] - spotCont[i-1] * prjYearFrac[i-1]) / (prjYearFrac[i] - prjYearFrac[i-1]) : spotCont[i];
+				
+				
+				if(priceZcb[i] < 0 || fwdCont[i]> 0.15 || spotCont[i]> 0.15 ) {
+					flag = true;
+					tempspotCont =spotCont[i];
+					tempFwdCont = spotCont[i];
+					idx =i;
+				}
+			}
+			
 			SmithWilsonRslt swResult = new SmithWilsonRslt();
 			
 			swResult.setBaseDate(baseDate.toString());
