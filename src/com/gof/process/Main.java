@@ -1994,6 +1994,7 @@ public class Main {
 					List<RcCorpPd> rcCorpPdList = Esg820_RcCorpPd.createRcCorpPd(bssd, agency, projectionYear);				
 					rcCorpPdList.stream().forEach(s -> session.save(s));
 					
+					// 24.07.01 NH 요건 수정 
 //					if(!agency.equals("NICE")) continue;
 					if(!agency.equals("S&P")) continue;
 					
