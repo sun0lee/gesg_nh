@@ -118,7 +118,10 @@ public class Main {
 	private static double    significanceLevel           = 0.05;	
 	private static int       cirAvgMonth                 = 36;	
 	private static int       cirPrjYear                  = 30;
-	private static String    iRateHisStBaseDate          = "20100101";	
+	private static String    iRateHisStBaseDate          = "20100101";
+	
+	// 2024.07.02 add 
+	private static String applAgencyCd = "NICE"; // DEFAULT , properties 파일에 설정된 내용을 우선 적용함. 
 	
 
 	public static void main(String[] args) {		
@@ -240,6 +243,11 @@ public class Main {
 			properties.load(new BufferedInputStream(fis));			
 //			EsgConstant.TABLE_SCHEMA = properties.getOrDefault("schema", "GESG").toString().trim().toUpperCase();
 			EsgConstant.TABLE_SCHEMA = properties.getOrDefault("schema", "RSKI").toString().trim().toUpperCase();
+			
+			// 2024.07.02 add 
+			if(properties.containsKey("applAgencyCd") && !properties.getProperty("applAgencyCd").toString().trim().toUpperCase().isEmpty()) {
+				applAgencyCd =properties.getProperty("applAgencyCd").toString().trim().toUpperCase() ;
+			}
 			
 			if(properties.containsKey("encrypt") && properties.getProperty("encrypt").toString().trim().toUpperCase().equals("Y")) {
 				
@@ -1996,7 +2004,8 @@ public class Main {
 					
 					// 24.07.01 NH 요건 수정 
 //					if(!agency.equals("NICE")) continue;
-					if(!agency.equals("S&P")) continue;
+//					if(!agency.equals("S&P")) continue;
+					if(!agency.equals(applAgencyCd)) continue;
 					
 					List<RcCorpPdBiz> rcCorpPdBizKicsList = Esg820_RcCorpPd.createRcCorpPdBiz(bssd, "KICS", agency, rcCorpPdList);
 					rcCorpPdBizKicsList.stream().forEach(s -> session.save(s));
