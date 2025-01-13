@@ -2,6 +2,7 @@ package com.gof.model;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -33,9 +34,12 @@ public class SmithWilsonKicsBts extends IrModel {
 	private double[][]                    cfMatrix;		
 	private RealMatrix                    zetaHat;
 	
+	// 25.01.09 최종관찰만기 단계적 연장 (20 to 30) ; 결과 tenor 추가 
+	private double[]                       resultTenor; // 결과를 출력할 테너 
+	
 
 	@Builder(builderClassName="of", builderMethodName="of")
-	public SmithWilsonKicsBts(LocalDate baseDate, List<IrCurveYtm> ytmCurveHisList, Double alphaApplied, Boolean isRealNumber, Integer freq, Double liqPrem) {				
+	public SmithWilsonKicsBts(LocalDate baseDate, List<IrCurveYtm> ytmCurveHisList, Double alphaApplied, Boolean isRealNumber, Integer freq, Double liqPrem,  Double addTenor) {				
 		super();		
 		this.baseDate = baseDate;		
 		this.setTermStructureYtm(ytmCurveHisList);
@@ -53,6 +57,23 @@ public class SmithWilsonKicsBts extends IrModel {
 		this.ltfrCont = irDiscToCont(this.ltfr);
 		this.liqPrem = toRealScale * this.liqPrem;
 		
+		if (addTenor !=null) {
+			Set<Double> resultTenorSet = new HashSet<>();
+		       for (double t : this.tenor) {
+		            resultTenorSet.add(t);
+		        }
+				resultTenorSet.add(addTenor);
+			
+			    this.resultTenor = resultTenorSet.stream()
+                        .sorted() 
+                        .mapToDouble(Double::doubleValue)
+                        .toArray();
+		}
+		
+	    if (this.resultTenor == null || this.resultTenor.length == 0) {
+	        this.resultTenor = this.tenor;
+	    }
+	    
 //		log.info("baseDate: {}, tenor:{}, iRate:{}, ltfrT:{}, ltfr:{}, ltfrCont:{}", this.baseDate, this.tenor, this.iRateBase, this.ltfrT, this.ltfr, this.ltfrCont);
 	}
 	
@@ -164,9 +185,10 @@ public class SmithWilsonKicsBts extends IrModel {
 		this.zetaHat       = cfMatx.transpose().multiply(zetaCol);
 	}
 	
-	
+	//  result tenor 를 input tenor와 구분하기 (25.01.09 금융감독원 최종관찰만기 연장 관련 )
 	private List<SmithWilsonRslt> swProjectionList(double alpha) {
-		return swProjectionList(alpha, this.tenor);
+//		return swProjectionList(alpha, this.tenor);
+		return swProjectionList(alpha, this.resultTenor);
 	}
 	
 	//TODO:

@@ -526,8 +526,10 @@ public class Main {
 						
 						List<IrCurveSpot> rst = new ArrayList<IrCurveSpot>();
 						
-						rst = Esg150_YtmToSpotSw.createIrCurveSpot(ytmRst.getKey(), irCrv.getKey(), ytmRst.getValue(), 
-								                                   irCurveSwMap.get(irCrv.getKey()).getSwAlphaYtm(), irCurveSwMap.get(irCrv.getKey()).getFreq());
+//						rst = Esg150_YtmToSpotSw.createIrCurveSpot(ytmRst.getKey(), irCrv.getKey(), ytmRst.getValue(), 
+//								                                   irCurveSwMap.get(irCrv.getKey()).getSwAlphaYtm(), irCurveSwMap.get(irCrv.getKey()).getFreq());
+						// 25.01.13 sy 수정 
+						rst = Esg150_YtmToSpotSw.createIrCurveSpot(ytmRst.getKey(), irCrv.getKey(), ytmRst.getValue(),irCurveSwMap.get(irCrv.getKey()));
 						
 						if(rst.isEmpty()) throw new Exception();
 						rst.forEach(s -> session.save(s));
@@ -589,7 +591,8 @@ public class Main {
 								
 						for(Map.Entry<String, List<IrCurveYtm>> ytmRst : ytmRstMap.entrySet()) {
 //							Esg150_YtmToSpotSw.createIrCurveSpot(ytmRst.getKey(), irCrv, ytmRst.getValue()).forEach(s -> session.save(s));
-							Esg150_YtmToSpotSw.createIrCurveSpot(ytmRst.getKey(), irCrv, ytmRst.getValue(), irCurveSwMap.get(irCrv).getSwAlphaYtm(), irCurveSwMap.get(irCrv).getFreq()).forEach(s -> session.save(s));
+//							Esg150_YtmToSpotSw.createIrCurveSpot(ytmRst.getKey(), irCrv, ytmRst.getValue(), irCurveSwMap.get(irCrv).getSwAlphaYtm(), irCurveSwMap.get(irCrv).getFreq()).forEach(s -> session.save(s));
+							Esg150_YtmToSpotSw.createIrCurveSpot(ytmRst.getKey(), irCrv, ytmRst.getValue(), irCurveSwMap.get(irCrv)).forEach(s -> session.save(s));
 						}				
 					}				
 					session.flush();
