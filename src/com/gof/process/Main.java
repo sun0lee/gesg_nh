@@ -1199,8 +1199,10 @@ public class Main {
 						continue;
 					}
 					
+					//(2025.01.15) 25년 할인율 산출 적용기준 : LLP 20->23 년으로 조정 but 모수 산출시 관측기간은 20년을 기준으로 함. 
 //					List<String> tenorList = IrCurveSpotDao.getIrCurveTenorList(bssd, irCrv.getKey(), irCurveSwMap.get(irCrv.getKey()).getLlp());					
-					List<String> tenorList = IrCurveSpotDao.getIrCurveTenorList(bssd, irCrv.getKey(), 20);
+//					List<String> tenorList = IrCurveSpotDao.getIrCurveTenorList(bssd, irCrv.getKey(), 20);
+					List<String> tenorList = IrCurveSpotDao.getIrCurveTenorList(bssd, irCrv.getKey(), Math.min(irCurveSwMap.get(irCrv.getKey()).getLlp(), 20));
 					log.info("TenorList in [{}]: ID: [{}], llp: [{}], matCd: {}", jobLog.getJobId(), irCrv.getKey(), irCurveSwMap.get(irCrv.getKey()).getLlp(), tenorList);					
 					if(tenorList.isEmpty()) {
 						log.warn("No Spot Rate Data [ID: {}] for [{}]", irCrv.getKey(), bssd);
@@ -1311,9 +1313,11 @@ public class Main {
 						log.warn("No Model Attribute of [{}] for [{}] in [{}] Table", irModelId, irCrv.getKey(), Process.toPhysicalName(IrParamModel.class.getSimpleName()));
 						continue;
 					}					
-										
+					
+					// (2025.01.15) 25년 할인율 산출 적용기준 : LLP 20->23 년으로 조정 but 모수 산출시 관측기간은 20년을 기준으로 함.
 //					List<String> tenorList = IrCurveSpotDao.getIrCurveTenorList(bssd, irCrv.getKey(), irCurveSwMap.get(irCrv.getKey()).getLlp());
-					List<String> tenorList = IrCurveSpotDao.getIrCurveTenorList(bssd, irCrv.getKey(), 20);
+//					List<String> tenorList = IrCurveSpotDao.getIrCurveTenorList(bssd, irCrv.getKey(), 20);
+					List<String> tenorList = IrCurveSpotDao.getIrCurveTenorList(bssd, irCrv.getKey(), Math.min(irCurveSwMap.get(irCrv.getKey()).getLlp(), 20));
 					
 					log.info("TenorList in [{}]: ID: [{}], llp: [{}], matCd: {}", jobLog.getJobId(), irCrv.getKey(), irCurveSwMap.get(irCrv.getKey()).getLlp(), tenorList);					
 					if(tenorList.isEmpty()) {
