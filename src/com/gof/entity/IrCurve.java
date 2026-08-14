@@ -7,6 +7,7 @@ import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import javax.persistence.Transient;
 
 import com.gof.enums.EBoolean;
 import com.gof.interfaces.EntityIdentifier;
@@ -48,5 +49,11 @@ public class IrCurve implements Serializable, EntityIdentifier {
 //		return false;
 //	}
 	
+	@Transient
+	private EBoolean ytmUseYn;
+
+	public void setYtmUseYn(EBoolean ytmUseYn) {
+	    this.ytmUseYn = ytmUseYn;
+	}
 	
 }

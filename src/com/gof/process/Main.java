@@ -72,6 +72,7 @@ import com.gof.entity.IrVolSwpn;
 import com.gof.entity.RcCorpPd;
 import com.gof.entity.RcCorpPdBiz;
 import com.gof.entity.RcCorpTm;
+import com.gof.enums.EBoolean;
 import com.gof.enums.EJob;
 import com.gof.enums.ERunArgument;
 import com.gof.util.AesCrypto;
@@ -138,8 +139,9 @@ public class Main {
 		job120();       // Job 120: Set Swaption Volatility
 		job130();       // Job 130: Set YTM TermStructure
 		
-		job150();       // Job 110: YTM to SPOT by Smith-Wilson Method
-		job151();       // Job 111: YTM to SPOT by Smith-Wilson Method Migration
+		job140();       // Job 140: External SPOT Rate Upload
+		job150();       // Job 150: YTM to SPOT by Smith-Wilson Method
+		job151();       // Job 151: YTM to SPOT by Smith-Wilson Method Migration
 		
 // ****************************************************************** Deterministic Scenario with LP      ********************************		
 
@@ -303,13 +305,21 @@ public class Main {
 			System.exit(0);
 		}
 		
-//		jobList.clear();
-//		jobList.add("150");
-//		jobList.add("260");
-//		jobList.add("261");
-//		jobList.add("270");
-//		jobList.add("271");
-//		jobList.add("280");
+		jobList.clear();
+		
+		jobList.add("130");
+		jobList.add("140");
+		jobList.add("150");
+//		jobList.add("210");
+//		jobList.add("220");
+		jobList.add("230");
+		jobList.add("240");
+		jobList.add("250");
+		jobList.add("260");
+		jobList.add("261");
+		jobList.add("270");
+		jobList.add("271");
+		jobList.add("280");
 		
 	}		
 	
@@ -497,7 +507,42 @@ public class Main {
 		}
 	}	
 	
-
+	
+	private static void job140() {
+		if(jobList.contains("140")) {
+			session.beginTransaction();
+			CoJobInfo jobLog = startJogLog(EJob.ESG140);			
+			
+			try {
+				for(Map.Entry<String, IrCurve> irCrv : irCurveMap.entrySet()) {
+					if(!irCurveSwMap.containsKey(irCrv.getKey())) {
+						log.warn("No Ir Curve Data [{}] in Smith-Wilson Map for [{}]", irCrv.getKey(), bssd);
+						continue;
+					}
+					
+					int delNum = session.createQuery("delete IrCurveSpot a where substr(a.baseDate,1,6) =:param1 and a.irCurveId=:param2 and a.lastModifiedBy = :param3")
+		                     			.setParameter("param1", bssd) 
+		                     			.setParameter("param2", irCrv.getKey())
+		                     			.setParameter("param3", "GESG_IrCurveSpotUsr")
+		                     			.executeUpdate();	
+					
+					log.info("[{}] has been Deleted in Job:[{}] [IR_CURVE_ID: {}, COUNT: {}]", Process.toPhysicalName(IrCurveSpot.class.getSimpleName()), jobLog.getJobId(), irCrv.getKey(), delNum);
+					
+					List<IrCurveSpot> irCurveSpotList = Esg140_ExternalSpot.loadSpotFromUsr(bssd, irCrv.getKey());
+					irCurveSpotList.stream().forEach(s -> session.save(s));					
+				}
+				completeJob("SUCCESS", jobLog);
+				
+			} catch (Exception e) {
+				log.error("ERROR: {}", e);
+				completeJob("ERROR", jobLog);
+			}			
+			session.saveOrUpdate(jobLog);
+			session.getTransaction().commit();
+		}
+	}		
+	
+	
 	private static void job150() {
 		if(jobList.contains("150")) {
 			session.beginTransaction();
@@ -510,7 +555,17 @@ public class Main {
 						continue;
 					}					
 
-					IrCurveSpotDao.deleteIrCurveSpotMonth(bssd, irCrv.getKey());
+//					IrCurveSpotDao.deleteIrCurveSpotMonth(bssd, irCrv.getKey());					
+					int delNum = session.createQuery("delete IrCurveSpot a where substr(a.baseDate,1,6) =:param1 and a.irCurveId=:param2 and a.lastModifiedBy = :param3")
+                 			.setParameter("param1", bssd) 
+                 			.setParameter("param2", irCrv.getKey())
+                 			.setParameter("param3", jobLog.getJobId())
+                 			.executeUpdate();
+					
+					log.info("[{}] has been Deleted in Job:[{}] [IR_CURVE_ID: {}, COUNT: {}]", Process.toPhysicalName(IrCurveSpot.class.getSimpleName()), jobLog.getJobId(), irCrv.getKey(), delNum);
+
+
+					
 					List<IrCurveYtm> ytmRstList = IrCurveYtmDao.getIrCurveYtmMonth(bssd, irCrv.getKey());					
 					if(ytmRstList.size()==0) {
 						log.warn("No Historical YTM Data exist for [{}, {}]", bssd, irCrv.getKey());
@@ -1010,17 +1065,29 @@ public class Main {
 //								.filter(s-> s.getIrCurveSceNo() ==25 ||s.getIrCurveSceNo() ==1)		
 //								.collect(Collectors.groupingBy(IrParamSw::getIrCurveId, TreeMap::new, Collectors.toMap(IrParamSw::getIrCurveSceNo, Function.identity(), (k, v) -> k, TreeMap::new)));
 				
-				List<IrDcntRate> kicsDcntRate = Esg270_IrDcntRate.createIrDcntRate(bssd, "KICS", kicsSwMap, projectionYear);
+				// spotUsr 데이터 존재 여부에 따라 ytm 사용여부 태깅 
+				for (IrCurve curve : irCurveMap.values()) {
+				    boolean spotExists = IrCurveSpotDao.existsSpotRateUsr(bssd,curve.getIrCurveId());
+				    curve.setYtmUseYn( spotExists ? EBoolean.N : EBoolean.Y);
+				}
+				
+				// 원천에 따라 자산 할인율 base 커브를 생성하는 방법이 달라짐. 
+				Map<String, EBoolean> ytmUseYnMap = irCurveMap.values().stream().collect(Collectors.toMap(
+											            IrCurve::getIrCurveId,
+											            IrCurve::getYtmUseYn
+											        ));
+				
+				List<IrDcntRate> kicsDcntRate = Esg270_IrDcntRate.createIrDcntRate(bssd, "KICS", kicsSwMap, projectionYear, ytmUseYnMap);
 //				if(kicsDcntRate.isEmpty()) throw new Exception();
 				kicsDcntRate.stream().forEach(s -> session.save(s));
 				
-				List<IrDcntRate> ifrsDcntRate = Esg270_IrDcntRate.createIrDcntRate(bssd, "IFRS", ifrsSwMap, projectionYear);
+				List<IrDcntRate> ifrsDcntRate = Esg270_IrDcntRate.createIrDcntRate(bssd, "IFRS", ifrsSwMap, projectionYear, ytmUseYnMap);
 				ifrsDcntRate.stream().forEach(s -> session.save(s));
 				
-				List<IrDcntRate> ibizDcntRate = Esg270_IrDcntRate.createIrDcntRate(bssd, "IBIZ", ibizSwMap, projectionYear);
+				List<IrDcntRate> ibizDcntRate = Esg270_IrDcntRate.createIrDcntRate(bssd, "IBIZ", ibizSwMap, projectionYear, ytmUseYnMap);
 				ibizDcntRate.stream().forEach(s -> session.save(s));
 				
-				List<IrDcntRate> saasDcntRate = Esg270_IrDcntRate.createIrDcntRate(bssd, "SAAS", saasSwMap, projectionYear);
+				List<IrDcntRate> saasDcntRate = Esg270_IrDcntRate.createIrDcntRate(bssd, "SAAS", saasSwMap, projectionYear, ytmUseYnMap);
 				saasDcntRate.stream().forEach(s -> session.save(s));				
 				
 				

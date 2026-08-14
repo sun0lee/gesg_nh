@@ -34,6 +34,7 @@
     <mapping class="com.gof.entity.IrCurveFwd"/>
     <mapping class="com.gof.entity.IrCurveSceBiz"/>
     <mapping class="com.gof.entity.IrCurveSpot"/>
+    <mapping class="com.gof.entity.IrCurveSpotUsr"/>
     <mapping class="com.gof.entity.IrCurveSpotWeek"/>
     <mapping class="com.gof.entity.IrCurveYtm"/>
     <mapping class="com.gof.entity.IrCurveYtmUsr"/>

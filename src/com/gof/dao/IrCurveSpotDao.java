@@ -12,6 +12,7 @@ import org.hibernate.Session;
 import com.gof.entity.IrSprdCurve;
 import com.gof.entity.IrCurve;
 import com.gof.entity.IrCurveSpot;
+import com.gof.entity.IrCurveSpotUsr;
 import com.gof.enums.EBoolean;
 import com.gof.util.FinUtils;
 import com.gof.util.HibernateUtil;
@@ -549,5 +550,38 @@ public class IrCurveSpotDao extends DaoUtil {
 //		
 //		return maxDate.toString();
 //	}	
+	
+	public static List<IrCurveSpotUsr> getIrCurveSpotUsr(String bssd,String irCurveId) 
+	{
+
+	    String query = "select a from IrCurveSpotUsr a "
+	                 + "where 1=1 "
+	                 + "and a.baseDate <= :bssd "
+	                 + "and substr(a.baseDate,1,6) = substr(:bssd,1,6) "
+	                 + "and a.irCurveId = :irCurveId "
+	                 + "order by a.baseDate, a.matCd "
+	                 ;
+
+	    return session.createQuery(query, IrCurveSpotUsr.class)
+	                  .setParameter("bssd", FinUtils.toEndOfMonth(bssd))
+	                  .setParameter("irCurveId", irCurveId)
+	                  .getResultList();
+	}
+	
+	public static boolean existsSpotRateUsr(String bssd, String irCurveId) {
+	    String q =
+	          " select count(a) "
+	        + " from IrCurveSpotUsr a "
+            + " where a.baseDate <= :bssd "
+            + " and substr(a.baseDate,1,6) = substr(:bssd,1,6) "
+	        + " and a.irCurveId = :irCurveId ";
+
+	    Long count = session.createQuery(q, Long.class)
+	    	.setParameter("bssd", FinUtils.toEndOfMonth(bssd))
+	        .setParameter("irCurveId", irCurveId)
+	        .getSingleResult();
+
+	    return count > 0;
+	}
 	
 }

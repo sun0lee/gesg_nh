@@ -24,7 +24,8 @@ public class IrParamModelDao extends DaoUtil {
 				 ;		
 		
 		return session.createQuery(q, IrParamModel.class)
-				      .setParameter("irModelId" , "%"+irModelId+"%")
+//			      .setParameter("irModelId" , "%"+irModelId+"%")
+			      .setParameter("irModelId" , irModelId)
 					  .setParameter("useYn"     , EBoolean.Y)
 					  .getResultList();
 	}
