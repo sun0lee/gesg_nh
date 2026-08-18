@@ -115,7 +115,10 @@ public class Esg270_IrDcntRate extends Process {
 							
 							double ltfrA = lastTenor.getSpotRate();
 							
-							SmithWilsonKics swKicsA = new SmithWilsonKics(baseDate, irCurveSpotListA, CMPD_MTD_DISC, true, ltfrA,  swSce.getValue().getLtfrCp(), projectionYear, 1, 100, DCB_MON_DIF);					
+							SmithWilsonKics swKicsA = new SmithWilsonKics(baseDate, irCurveSpotListA, CMPD_MTD_DISC, true
+														, ltfrA  //,  swSce.getValue().getLtfrCp()
+														, projectionYear, 1, 100, DCB_MON_DIF
+														, swSce.getValue().getSwAlphaYtm());					
 							baseRateSce1Map= swKicsA.getSmithWilsonResultList().stream().collect(Collectors.toMap(SmithWilsonRslt::getMatCd, Function.identity()));
 					}
 					

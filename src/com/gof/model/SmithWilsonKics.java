@@ -9,6 +9,7 @@ import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 
 import com.gof.entity.IrCurveSpot;
+import com.gof.enums.EBoolean;
 import com.gof.model.entity.SmithWilsonRslt;
 
 import lombok.Getter;
@@ -33,6 +34,7 @@ public class SmithWilsonKics extends IrModel {
 	private int                           ltfrT;	
 	private double                        lastLiquidPoint   = 20;
 	
+	private EBoolean 					  alphaGivenYn 		= EBoolean.N;	
 	private double                        alphaApplied      = 0.0;
 	private double                        alphaDApplied     = 0.0;
 	private int                           alphaItrNum       = 100;
@@ -72,6 +74,27 @@ public class SmithWilsonKics extends IrModel {
 		this.setProjectionTenor();
 	}		
 	
+	// alpha 값이 외부에서 주어지는 경우 
+	public SmithWilsonKics(LocalDate baseDate, List<IrCurveSpot> irCurveHisList, char cmpdType, boolean isRealNumber, double ltfr
+//			, int ltfrT
+			, int prjYear, int prjInterval, int alphaItrNum, int dayCountBasis , double alphaApplied) {				
+		super();		
+		this.baseDate = baseDate;		
+		this.setTermStructureBase(irCurveHisList);
+		this.setLastLiquidPoint(this.tenor[this.tenor.length-1]);
+		this.cmpdType = cmpdType;
+		this.isRealNumber = isRealNumber;
+		this.ltfr = ltfr;
+//		this.ltfrT = ltfrT;
+		this.prjYear = prjYear;		
+		this.prjInterval = prjInterval;
+		this.alphaItrNum = alphaItrNum;
+		this.dayCountBasis = dayCountBasis;
+		this.setSwAttributes();
+		this.setProjectionTenor();
+		this.alphaGivenYn = EBoolean.Y;
+		this.alphaApplied= alphaApplied;
+	}	
 	
 	public SmithWilsonKics(LocalDate baseDate, Map<Double, Double> termStructure,                boolean isRealNumber, double ltfr, int ltfrT, int prjYear) {
 		this(baseDate, termStructure,  CMPD_MTD_DISC, isRealNumber, ltfr, ltfrT, prjYear, 1, 100, 1);		
@@ -158,28 +181,50 @@ public class SmithWilsonKics extends IrModel {
 			}
 			
 			RealMatrix tenorCol = MatrixUtils.createColumnRealMatrix(this.tenorYearFrac);
-			RealMatrix weight   = MatrixUtils.createRealMatrix(smithWilsonWeight(this.tenorYearFrac, this.tenorYearFrac, this.alphaApplied, this.ltfrCont));
-			RealMatrix invWeight = MatrixUtils.inverse(weight);
 			
-//			if(i == 0) log.info("weight: {}, {}, {}, {}", this.tenorYearFrac, alpha, this.ltfrCont, weight);
+///////////  calculateZeta()
+//			RealMatrix weight   = MatrixUtils.createRealMatrix(smithWilsonWeight(this.tenorYearFrac, this.tenorYearFrac, this.alphaApplied, this.ltfrCont));
+//			RealMatrix invWeight = MatrixUtils.inverse(weight);
+//			
+////			if(i == 0) log.info("weight: {}, {}, {}, {}", this.tenorYearFrac, alpha, this.ltfrCont, weight);
+//			
+//			double[] pVal = new double[this.tenorYearFrac.length];
+//			double[] mean = new double[this.tenorYearFrac.length];
+//			double[] loss = new double[this.tenorYearFrac.length];
+//			double[] sinh = new double[this.tenorYearFrac.length];
+//			
+//			for(int j=0; j<loss.length; j++) {
+//				pVal[j] = zeroBondUnitPrice(this.iRateBase[j], this.tenorYearFrac[j]);
+//				mean[j] = zeroBondUnitPrice(this.ltfrCont, this.tenorYearFrac[j]);
+//				loss[j] = smithWilsonLoss(this.iRateBase[j], this.tenorYearFrac[j], this.ltfrCont);
+//				sinh[j] = Math.sinh(this.alphaApplied * this.tenorYearFrac[j]);
+//			}
+//			
+//			RealMatrix lossCol = MatrixUtils.createColumnRealMatrix(loss);
+//			RealMatrix zetaCol = invWeight.multiply(lossCol);		
+//			RealMatrix sinhCol = MatrixUtils.createColumnRealMatrix(sinh);
+//			RealMatrix qMatDiag = MatrixUtils.createRealDiagonalMatrix(mean);
+
 			
-			double[] pVal = new double[this.tenorYearFrac.length];
+///////////  calculateZeta() 
+///
 			double[] mean = new double[this.tenorYearFrac.length];
-			double[] loss = new double[this.tenorYearFrac.length];
 			double[] sinh = new double[this.tenorYearFrac.length];
-			
-			for(int j=0; j<loss.length; j++) {
-				pVal[j] = zeroBondUnitPrice(this.iRateBase[j], this.tenorYearFrac[j]);
-				mean[j] = zeroBondUnitPrice(this.ltfrCont, this.tenorYearFrac[j]);
-				loss[j] = smithWilsonLoss(this.iRateBase[j], this.tenorYearFrac[j], this.ltfrCont);
-				sinh[j] = Math.sinh(this.alphaApplied * this.tenorYearFrac[j]);
+
+			for(int j=0; j<mean.length; j++) {
+			    mean[j] = zeroBondUnitPrice(this.ltfrCont,this.tenorYearFrac[j]);
+			    sinh[j] = Math.sinh(this.alphaApplied * this.tenorYearFrac[j]);
 			}
-			
-			RealMatrix lossCol = MatrixUtils.createColumnRealMatrix(loss);
-			RealMatrix zetaCol = invWeight.multiply(lossCol);		
+
+			this.calculateZeta();
+
+			RealMatrix zetaCol = this.zetaColumn;
+
 			RealMatrix sinhCol = MatrixUtils.createColumnRealMatrix(sinh);
 			RealMatrix qMatDiag = MatrixUtils.createRealDiagonalMatrix(mean);
 			
+///////////  calculateZeta()
+
 			double kappaNum = tenorCol.transpose().multiply(qMatDiag).multiply(zetaCol).scalarMultiply(this.alphaApplied).scalarAdd(1.0).getEntry(0,0);
 			double kappaDenom = sinhCol.transpose().multiply(qMatDiag).multiply(zetaCol).getEntry(0,0);
 			this.kappaApplied = kappaNum / (Math.abs(kappaDenom) < ZERO_DOUBLE ? 1.0 : kappaDenom);
@@ -188,7 +233,8 @@ public class SmithWilsonKics extends IrModel {
 			this.alphaDpp = -this.ltfrCont * this.alphaPp + Math.exp(-this.ltfrCont * this.ltfrT) * this.alphaApplied * Math.exp(-this.alphaApplied * this.ltfrT) * kappaDenom;
 			this.alphaFwd = -1 / this.alphaPp * this.alphaDpp;		
 
-			this.zetaColumn = zetaCol;
+///////////  calculateZeta()
+//			this.zetaColumn = zetaCol;
 			
 			if(i==0) {	
 				if(Math.abs(Math.exp(this.ltfrCont) - Math.exp(this.alphaFwd)) < ltfrEpsilon) {
@@ -234,14 +280,38 @@ public class SmithWilsonKics extends IrModel {
 		}		
 	}
 	
+	private void calculateZeta() {
+
+	    RealMatrix weight = MatrixUtils.createRealMatrix(smithWilsonWeight(this.tenorYearFrac,this.tenorYearFrac,this.alphaApplied, this.ltfrCont));
+	    RealMatrix invWeight = MatrixUtils.inverse(weight);
+
+	    double[] loss = new double[this.tenorYearFrac.length];
+
+	    for(int j = 0; j < loss.length; j++) {
+	        loss[j] = smithWilsonLoss(
+	            this.iRateBase[j],
+	            this.tenorYearFrac[j],
+	            this.ltfrCont
+	        );
+	    }
+
+	    RealMatrix lossCol = MatrixUtils.createColumnRealMatrix(loss);
+	    this.zetaColumn = invWeight.multiply(lossCol);
+	}
 	
 	//TODO:
 	private List<SmithWilsonRslt> swProjectionList() {
 		
 		List<SmithWilsonRslt> swResultlList = new ArrayList<SmithWilsonRslt>();			
-		this.smithWilsonAlphaFinding();
+		 if (alphaGivenYn == EBoolean.N) {
+			 	this.smithWilsonAlphaFinding();
+			 	log.info("AlphaOpt: {}, Error: {}", this.alphaApplied, Math.abs(this.alphaFwd - this.ltfrCont));
+		 }
+		 else {
+			 this.calculateZeta();
+			 log.info("AlphaOpt: {}, zeta: {}", this.alphaApplied, this.zetaColumn );
+		 }
 		
-		log.info("AlphaOpt: {}, Error: {}", this.alphaApplied, Math.abs(this.alphaFwd - this.ltfrCont));
 //		log.info("{}", this.zetaColumn);
 		
 		double[] df = new double[this.prjYearFrac.length];
