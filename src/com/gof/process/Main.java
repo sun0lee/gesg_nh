@@ -305,21 +305,21 @@ public class Main {
 			System.exit(0);
 		}
 		
-		jobList.clear();
-		
-		jobList.add("130");
-		jobList.add("140");
-		jobList.add("150");
-//		jobList.add("210");
-//		jobList.add("220");
-		jobList.add("230");
-		jobList.add("240");
-		jobList.add("250");
-		jobList.add("260");
-		jobList.add("261");
-		jobList.add("270");
-		jobList.add("271");
-		jobList.add("280");
+//		jobList.clear();
+////		
+////		jobList.add("130");
+////		jobList.add("140");
+////		jobList.add("150");
+//////		jobList.add("210");
+//////		jobList.add("220");
+////		jobList.add("230");
+////		jobList.add("240");
+////		jobList.add("250");
+////		jobList.add("260");
+////		jobList.add("261");
+//		jobList.add("270");
+//		jobList.add("271");
+//		jobList.add("280");
 		
 	}		
 	
@@ -1064,18 +1064,8 @@ public class Main {
 //								.filter(s-> s.getApplBizDv().equals("KICS"))
 //								.filter(s-> s.getIrCurveSceNo() ==25 ||s.getIrCurveSceNo() ==1)		
 //								.collect(Collectors.groupingBy(IrParamSw::getIrCurveId, TreeMap::new, Collectors.toMap(IrParamSw::getIrCurveSceNo, Function.identity(), (k, v) -> k, TreeMap::new)));
-				
-				// spotUsr 데이터 존재 여부에 따라 ytm 사용여부 태깅 
-				for (IrCurve curve : irCurveMap.values()) {
-				    boolean spotExists = IrCurveSpotDao.existsSpotRateUsr(bssd,curve.getIrCurveId());
-				    curve.setYtmUseYn( spotExists ? EBoolean.N : EBoolean.Y);
-				}
-				
-				// 원천에 따라 자산 할인율 base 커브를 생성하는 방법이 달라짐. 
-				Map<String, EBoolean> ytmUseYnMap = irCurveMap.values().stream().collect(Collectors.toMap(
-											            IrCurve::getIrCurveId,
-											            IrCurve::getYtmUseYn
-											        ));
+					
+				Map<String, EBoolean> ytmUseYnMap = getYtmUseYnMap(bssd);
 				
 				List<IrDcntRate> kicsDcntRate = Esg270_IrDcntRate.createIrDcntRate(bssd, "KICS", kicsSwMap, projectionYear, ytmUseYnMap);
 //				if(kicsDcntRate.isEmpty()) throw new Exception();
@@ -1138,6 +1128,8 @@ public class Main {
 //							}
 //						}
 //					}
+					
+					Map<String, EBoolean> ytmUseYnMap = getYtmUseYnMap(bssd);
 						
 					for(Map.Entry<String, Map<Integer,IrParamSw>> entry :  kicsSwMap2.entrySet()) {
 						for( Map.Entry<Integer, IrParamSw> innerEntry : entry .getValue().entrySet()) {
@@ -1146,7 +1138,7 @@ public class Main {
 						
 					}
 					
-					List<IrDcntRateBu> kicsDcntRateBu = Esg261_IrDcntRateBu_Ytm.setIrDcntRateBu(bssd, irModelId, "KICS",  kicsSwMap2);				
+					List<IrDcntRateBu> kicsDcntRateBu = Esg261_IrDcntRateBu_Ytm.setIrDcntRateBu(bssd, irModelId, "KICS",  kicsSwMap2, ytmUseYnMap);				
 					kicsDcntRateBu.stream().forEach(s -> session.saveOrUpdate(s));
 					
 					session.flush();
@@ -1171,6 +1163,9 @@ public class Main {
 			try {
 				
 				String irModelId = "AFNS";		//for acquiring AFNS Shock Spread
+				
+				Map<String, EBoolean> ytmUseYnMap = getYtmUseYnMap(bssd);
+				
 //				YTM STPRED 가 설정된 SW 세팅만 필터링
 				Map<Double, List<IrParamSw>> spMap = ytmSpreadList.stream().collect(groupingBy(IrParamSw::getYtmSpread, toList()));
 				
@@ -1180,7 +1175,7 @@ public class Main {
 					
 //					entry.getValue().forEach(s-> log.info("aaaaaa : {},{},{}", entry.getKey(), s.getIrCurveSceNo(), s.getShkSprdSceNo()));
 					
-					List<IrDcntRate> kicsDcntRate = Esg271_IrDcntRate.createIrDcntRate(bssd, "KICS", kicsSwMap3, projectionYear);
+					List<IrDcntRate> kicsDcntRate = Esg271_IrDcntRate.createIrDcntRate(bssd, "KICS", kicsSwMap3, ytmUseYnMap,  projectionYear);
 					kicsDcntRate.stream().forEach(s -> session.saveOrUpdate(s));
 					
 					session.flush();
@@ -2101,6 +2096,12 @@ public class Main {
 		}
 	}	
 	
+	// 26.09.05 입수원천 타입 구분 MAP 추가 
+	private static Map<String, EBoolean> getYtmUseYnMap(String bssd) {
+	    return irCurveMap.values().stream()
+	            .collect(Collectors.toMap(IrCurve::getIrCurveId, curve 
+	            							-> IrCurveSpotDao.existsSpotRateUsr(bssd,curve.getIrCurveId()) ? EBoolean.N : EBoolean.Y));
+	}
 	
 	private static CoJobInfo startJogLog(EJob job) {
 		CoJobInfo jobLog = new CoJobInfo();

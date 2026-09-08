@@ -16,6 +16,7 @@ import com.gof.entity.IrDcntRateBu;
 import com.gof.entity.IrParamSw;
 import com.gof.entity.IrSprdAfnsBiz;
 import com.gof.entity.IrSprdLpBiz;
+import com.gof.enums.EBoolean;
 import com.gof.enums.EJob;
 import com.gof.util.StringUtil;
 
@@ -27,27 +28,43 @@ public class Esg261_IrDcntRateBu_Ytm extends Process {
 	public static final Esg261_IrDcntRateBu_Ytm INSTANCE = new Esg261_IrDcntRateBu_Ytm();
 	public static final String jobId = INSTANCE.getClass().getSimpleName().toUpperCase().substring(0, ENTITY_LENGTH);	
 	
-	public static List<IrDcntRateBu> setIrDcntRateBu(String bssd, String irModelId, String applBizDv, Map<String, Map<Integer, IrParamSw>> paramSwMap) {	
+	public static List<IrDcntRateBu> setIrDcntRateBu(String bssd, String irModelId, String applBizDv, Map<String, Map<Integer, IrParamSw>> paramSwMap, Map<String, EBoolean> ytmUseYnMap) {	
 		
 		List<IrDcntRateBu> rst = new ArrayList<IrDcntRateBu>();
 		
-		for(Map.Entry<String, Map<Integer, IrParamSw>> curveSwMap : paramSwMap.entrySet()) {		
+		for(Map.Entry<String, Map<Integer, IrParamSw>> curveSwMap : paramSwMap.entrySet()) {	
 			
-			List<IrCurveYtm> ytmList = IrCurveYtmDao.getIrCurveYtm(bssd, curveSwMap.getKey());
+			EBoolean ytmUseYn = ytmUseYnMap.get(curveSwMap.getKey());
+			
+//			List<IrCurveYtm> ytmList = IrCurveYtmDao.getIrCurveYtm(bssd, curveSwMap.getKey());
 //			ytmList.forEach(s-> log.info("ytm : {},{}", s.toString()));
 
 			for(Map.Entry<Integer, IrParamSw> swSce : curveSwMap.getValue().entrySet()) {
-				List<IrCurveYtm> ytmAddList = ytmList.stream().map(s->s.addSpread(swSce.getValue().getYtmSpread())).collect(Collectors.toList());
 				
-//				ytmAddList.forEach(s-> log.info("ytm1 : {},{}", s.toString()));
+				List<IrCurveSpot> spotList;
 				
-//				List<IrCurveSpot> spotList = Esg150_YtmToSpotSw.createIrCurveSpot(bssd, curveSwMap.getKey(), ytmAddList, swSce.getValue().getSwAlphaYtm(), swSce.getValue().getFreq())
-				List<IrCurveSpot> spotList = Esg150_YtmToSpotSw.createIrCurveSpot(bssd, curveSwMap.getKey(), ytmAddList, swSce.getValue())
-													.stream()
-//													.map(s-> s.convertToCont())
-													.collect(Collectors.toList());
+				if (ytmUseYn == EBoolean.Y) {
+					List<IrCurveYtm> ytmList = IrCurveYtmDao.getIrCurveYtm(bssd, curveSwMap.getKey());
+					List<IrCurveYtm> ytmAddList = ytmList.stream().map(s->s.addSpread(swSce.getValue().getYtmSpread())).collect(Collectors.toList());
+					
+	//				ytmAddList.forEach(s-> log.info("ytm1 : {},{}", s.toString()));
+					
+	//				List<IrCurveSpot> spotList = Esg150_YtmToSpotSw.createIrCurveSpot(bssd, curveSwMap.getKey(), ytmAddList, swSce.getValue().getSwAlphaYtm(), swSce.getValue().getFreq())
+					spotList = Esg150_YtmToSpotSw.createIrCurveSpot(bssd, curveSwMap.getKey(), ytmAddList, swSce.getValue())
+														.stream()
+	//													.map(s-> s.convertToCont())
+														.collect(Collectors.toList());
+					
+//					spotList.forEach(s-> log.info("zzzz : {},{}", swSce.getKey(), s.toString()));
+					
+				} else {
+					spotList =  IrCurveSpotDao.getIrCurveSpot(bssd, curveSwMap.getKey());
+					
+					double parallelShift =StringUtil.objectToPrimitive(swSce.getValue().getYtmSpread(),0.0);
+			        spotList = spotList.stream().map(s -> s.addSpread(parallelShift))
+			                    				.collect(Collectors.toList());					
+				}
 				
-				spotList.forEach(s-> log.info("zzzz : {},{}", swSce.getKey(), s.toString()));
 				TreeMap<String, Double> spotMap = spotList.stream().collect(Collectors.toMap(IrCurveSpot::getMatCd, IrCurveSpot::getSpotRate, (k, v) -> k, TreeMap::new));
 				
 				if(spotList.isEmpty()) {
